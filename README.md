@@ -57,16 +57,16 @@ Example response:
 {
   "success": true,
   "company": "SafeLedger",
-  "url": "https://www.trustpilot.com/review/safeledger.ae",
+  "url": "https://www.trustpilot.com/review/you-domain",
   "scrapedAt": "2025-01-08T10:30:00.000Z",
   "totalReviews": 15,
   "reviews": [
     {
-      "reviewerName": "Sahil Seth",
+      "reviewerName": "user",
       "reviewerImage": "https://...",
       "rating": 5,
-      "title": "Smooth Company Setup, but Communication Can Improve",
-      "content": "I recently used SafeLedger.ae to set up my UAE Free Zone company...",
+      "title": "reivew title",
+      "content": "review description",
       "reviewDate": "2025-05-12T00:00:00.000Z",
       "reviewDateFormatted": "May 12, 2025",
       "dateOfExperience": "February 15, 2025",

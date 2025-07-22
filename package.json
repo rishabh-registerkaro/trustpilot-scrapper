@@ -10,8 +10,7 @@
     "setup": "npm install && echo '✅ Setup complete! Run: npm start'",
     "scrape": "curl -s http://localhost:3001/scrape/safeledger | jq .",
     "docker:build": "docker build -t trustpilot-scraper .",
-    "docker:run": "docker run -p 3001:3001 trustpilot-scraper",
-    "docker:dev": "docker run -p 3001:3001 -v $(pwd):/usr/src/app trustpilot-scraper"
+    "docker:run": "docker run -p 3001:3001 trustpilot-scraper"
   },
   "keywords": [
     "trustpilot",
