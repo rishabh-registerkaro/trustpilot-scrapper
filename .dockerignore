@@ -40,12 +40,6 @@ coverage
 logs
 *.log
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
 # Temporary folders
 tmp/
 temp/
@@ -89,10 +83,11 @@ tests/
 dist/
 build/
 
-# Scraped data files (optional - exclude if you don't want them in container)
-*.json
-*.csv
+# Scraped data files ONLY (not package.json!)
+safeledger_reviews.json
+trustpilot_reviews.json
+*_reviews.csv
+*_reviews.json
 
 # Browser cache and temp directories
 .cache/
-tmp/ 
