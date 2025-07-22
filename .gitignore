@@ -1,0 +1,63 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*.local
+
+# Logs
+logs/
+*.log
+*.log.*
+log.txt
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+
+# Cache
+.cache/
+.next/
+out/
+coverage/
+.nyc_output/
+.vscode/
+.idea/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+
+# Other
+tmp/
+temp/
+*.tgz
+*.tar.gz
+
+# Optional: If using TypeScript
+*.tsbuildinfo
+
+# Optional: PM2 process files
+pids/
+*.pid
+*.pid.lock
+ecosystem.config.js
+
+# Optional: Docker files (if used for local builds)
+docker-compose.override.yml

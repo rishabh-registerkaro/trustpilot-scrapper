@@ -1,0 +1,33 @@
+{
+  "name": "trustpilot-review-scraper",
+  "version": "1.0.0",
+  "description": "Complete Trustpilot review scraper with API endpoint",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "node test.js",
+    "setup": "npm install && echo '✅ Setup complete! Run: npm start'",
+    "scrape": "curl -s http://localhost:3001/scrape/safeledger | jq .",
+    "docker:build": "docker build -t trustpilot-scraper .",
+    "docker:run": "docker run -p 3001:3001 trustpilot-scraper",
+    "docker:dev": "docker run -p 3001:3001 -v $(pwd):/usr/src/app trustpilot-scraper"
+  },
+  "keywords": [
+    "trustpilot",
+    "scraper",
+    "reviews",
+    "api",
+    "nodejs"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^22.15.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
