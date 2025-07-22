@@ -12,6 +12,9 @@ RUN apk add --no-cache \
     ttf-freefont \
     && rm -rf /var/cache/apk/*
 
+# Update npm to latest version to handle lockfileVersion 3
+RUN npm install -g npm@latest
+
 # Tell Puppeteer to use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
@@ -20,10 +23,10 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY package*.json ./
+COPY package.json package-lock.json* ./
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (use ci for faster, reproducible builds)
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy application code
 COPY . .
