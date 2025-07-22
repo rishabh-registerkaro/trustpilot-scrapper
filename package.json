@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Complete Trustpilot review scraper with API endpoint",
   "main": "app.js",
+  "type": "module",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",

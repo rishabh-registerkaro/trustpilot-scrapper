@@ -1,64 +1,153 @@
-const express = require('express');
-const cors = require('cors');
-const puppeteer = require('puppeteer');
+import express from 'express';
+import cors from 'cors';
+import puppeteer from 'puppeteer';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT || 4000;
+const HOST = '0.0.0.0';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-class TrustpilotScraper {
-  constructor() {
-    this.browser = null;
-    this.page = null;
-  }
+// Trustpilot Scraper Module (Functional approach)
+export const createTrustpilotScraper = () => {
+  let browser = null;
+  let page = null;
 
-  async init() {
+  const init = async () => {
     try {
-      this.browser = await puppeteer.launch({
+      browser = await puppeteer.launch({
         headless: 'new',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
           '--disable-background-timer-throttling',
           '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding'
+          '--disable-renderer-backgrounding',
+          '--disable-extensions',
+          '--disable-plugins',
+          '--disable-default-apps',
+          '--disable-hang-monitor',
+          '--disable-prompt-on-repost',
+          '--disable-sync',
+          '--metrics-recording-only',
+          '--no-first-run',
+          '--safebrowsing-disable-auto-update',
+          '--password-store=basic',
+          '--use-mock-keychain'
         ]
       });
       
-      this.page = await this.browser.newPage();
+      page = await browser.newPage();
       
-      // Set user agent to avoid blocking
-      await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+      // Set realistic timeouts for cloud environment
+      page.setDefaultNavigationTimeout(120000); // 2 minutes
+      page.setDefaultTimeout(60000); // 1 minute for other operations
       
-      // Set viewport
-      await this.page.setViewport({ width: 1280, height: 720 });
+      // Enhanced stealth measures
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await page.setViewport({ width: 1366, height: 768 });
       
-      console.log('✅ Browser initialized successfully');
+      // Set additional headers to look more human
+      await page.setExtraHTTPHeaders({
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      });
+      
+      // Hide webdriver property
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+        });
+      });
+
+      // Enable request interception to block unnecessary resources
+      await page.setRequestInterception(true);
+      
+      page.on('request', (req) => {
+        const resourceType = req.resourceType();
+        const url = req.url();
+        
+        // Block unnecessary resources to speed up loading
+        if (resourceType === 'image' || resourceType === 'stylesheet' || resourceType === 'font') {
+          req.abort();
+        } else if (url.includes('google-analytics') || url.includes('facebook') || url.includes('twitter')) {
+          req.abort();
+        } else {
+          req.continue();
+        }
+      });
+      
+      console.log('✅ Enhanced browser initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize browser:', error);
       throw error;
     }
-  }
+  };
 
-  async scrapeAllReviews(url) {
+  const scrapeAllReviews = async (url) => {
     try {
       console.log(`🚀 Starting to scrape: ${url}`);
-      await this.page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
       
+      // Multiple navigation strategies with retries
+      const navigationStrategies = [
+        { waitUntil: 'domcontentloaded', timeout: 60000 },
+        { waitUntil: 'load', timeout: 90000 },
+        { waitUntil: 'networkidle2', timeout: 120000 }
+      ];
+      
+      let navigationSuccess = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      for (const strategy of navigationStrategies) {
+        if (navigationSuccess) break;
+        
+        attempts = 0;
+        while (!navigationSuccess && attempts < maxAttempts) {
+          try {
+            attempts++;
+            console.log(`📍 Navigation attempt ${attempts}/${maxAttempts} with ${strategy.waitUntil}, timeout: ${strategy.timeout}ms`);
+            
+            await page.goto(url, strategy);
+            navigationSuccess = true;
+            console.log('✅ Navigation successful');
+            break;
+            
+          } catch (navError) {
+            console.log(`⚠️ Navigation attempt ${attempts} failed:`, navError.message);
+            if (attempts >= maxAttempts) {
+              console.log(`❌ All attempts failed for ${strategy.waitUntil}`);
+            }
+            // Wait before retry
+            await page.waitForTimeout(5000);
+          }
+        }
+      }
+      
+      if (!navigationSuccess) {
+        throw new Error('All navigation strategies failed');
+      }
+
+      // Check if page loaded correctly
+      const pageTitle = await page.title();
+      if (!pageTitle || pageTitle.includes('Error') || pageTitle.includes('403')) {
+        throw new Error('Page failed to load correctly or was blocked');
+      }
+
       // Handle cookie consent if present
       try {
-        await this.page.waitForSelector('#onetrust-accept-btn-handler', { timeout: 3000 });
-        await this.page.click('#onetrust-accept-btn-handler');
-        await this.page.waitForTimeout(2000);
+        await page.waitForSelector('#onetrust-accept-btn-handler', { timeout: 3000 });
+        await page.click('#onetrust-accept-btn-handler');
+        await page.waitForTimeout(2000);
         console.log('✅ Cookie consent handled');
       } catch (e) {
         console.log('ℹ️ No cookie consent found or already accepted');
@@ -69,17 +158,27 @@ class TrustpilotScraper {
       let hasNextPage = true;
 
       // Get total pages
-      const totalPages = await this.getTotalPages();
+      const totalPages = await getTotalPages();
       console.log(`📄 Found ${totalPages} total pages to scrape`);
 
       while (hasNextPage && currentPage <= totalPages) {
         console.log(`📖 Scraping page ${currentPage} of ${totalPages}...`);
         
-        // Wait for reviews to load
-        await this.page.waitForSelector('[data-service-review-card-paper]', { timeout: 10000 });
+        // Wait for reviews to load with extended timeout
+        try {
+          await page.waitForSelector('[data-service-review-card-paper]', { timeout: 30000 });
+        } catch (selectorError) {
+          console.log('⚠️ Review selector not found, trying alternative selectors...');
+          // Try alternative selectors
+          const found = await page.waitForSelector('article[data-testid="review"]', { timeout: 10000 }).catch(() => false);
+          if (!found) {
+            console.log('❌ No review elements found on this page');
+            break;
+          }
+        }
         
         // Extract reviews from current page
-        const pageReviews = await this.extractReviewsFromPage();
+        const pageReviews = await extractReviewsFromPage();
         allReviews.push(...pageReviews);
         
         console.log(`✅ Found ${pageReviews.length} reviews on page ${currentPage}`);
@@ -89,10 +188,10 @@ class TrustpilotScraper {
         console.log(`📸 Reviews with profile images on page ${currentPage}: ${reviewsWithImages.length}/${pageReviews.length}`);
         
         // Try to go to next page
-        hasNextPage = await this.goToNextPage();
+        hasNextPage = await goToNextPage();
         if (hasNextPage) {
           currentPage++;
-          await this.page.waitForTimeout(2000); // Wait between page requests
+          await page.waitForTimeout(3000); // Wait between page requests
         }
       }
 
@@ -103,11 +202,11 @@ class TrustpilotScraper {
       console.error('❌ Error during scraping:', error);
       throw error;
     }
-  }
+  };
 
-  async getTotalPages() {
+  const getTotalPages = async () => {
     try {
-      const paginationInfo = await this.page.evaluate(() => {
+      const paginationInfo = await page.evaluate(() => {
         // Look for pagination info
         const paginationElement = document.querySelector('[data-pagination-button-last]');
         if (paginationElement) {
@@ -127,26 +226,23 @@ class TrustpilotScraper {
       console.log('⚠️ Could not determine total pages, defaulting to 1');
       return 1;
     }
-  }
+  };
 
-
-
-  async extractReviewsFromPage() {
-    return await this.page.evaluate(() => {
+  const extractReviewsFromPage = async () => {
+    return await page.evaluate(() => {
       const reviewElements = document.querySelectorAll('[data-service-review-card-paper]');
       const reviews = [];
 
-      // Simple and direct function to find profile images
+      // Enhanced function to find profile images
       function findProfileImage(reviewElement) {
-        // Try multiple selectors in order of reliability
         const selectors = [
-          'img[src*="user-images.trustpilot.com"]',  // Direct Trustpilot user images
-          '[data-consumer-avatar] img',              // Official avatar data attribute
-          '.consumer-avatar img',                    // Avatar class
-          'img[alt*="avatar"]',                      // Alt text containing avatar
-          'img[alt*="profile"]',                     // Alt text containing profile
-          'img[width="73"][height="73"]',            // Common profile image size on Trustpilot
-          'img[style*="73px"]'                       // Inline style with profile size
+          'img[src*="user-images.trustpilot.com"]',
+          '[data-consumer-avatar] img',
+          '.consumer-avatar img',
+          'img[alt*="avatar"]',
+          'img[alt*="profile"]',
+          'img[width="73"][height="73"]',
+          'img[style*="73px"]'
         ];
         
         for (const selector of selectors) {
@@ -208,29 +304,26 @@ class TrustpilotScraper {
           const experienceElement = reviewElement.querySelector('[data-service-review-date-of-experience-typography]');
           review.dateOfExperience = experienceElement ? experienceElement.textContent.replace('Date of experience:', '').trim() : '';
           
-          // Extract review images (if any) with comprehensive selectors
+          // Extract review images (if any)
           let imageElements = reviewElement.querySelectorAll('[data-service-review-image] img');
           if (imageElements.length === 0) {
-            // Try alternative selectors for review images
             imageElements = reviewElement.querySelectorAll('img[src*="review-images"], img[src*="media"]');
           }
           if (imageElements.length === 0) {
-            // Look for any images that aren't the profile image
             const allImages = reviewElement.querySelectorAll('img');
             imageElements = Array.from(allImages).filter(img => {
               const src = img.src;
               return src && 
-                     !src.includes('user-images.trustpilot.com') && // Exclude profile images
+                     !src.includes('user-images.trustpilot.com') &&
                      !src.includes('avatar') && 
                      !src.includes('star') && 
                      !src.includes('icon') &&
-                     src !== review.reviewerImage; // Exclude the reviewer's profile image
+                     src !== review.reviewerImage;
             });
           }
           
           review.reviewImages = Array.from(imageElements).map(img => {
             let src = img.src;
-            // Ensure full URL
             if (src.startsWith('//')) {
               src = 'https:' + src;
             }
@@ -272,21 +365,21 @@ class TrustpilotScraper {
 
       return reviews;
     });
-  }
+  };
 
-  async goToNextPage() {
+  const goToNextPage = async () => {
     try {
       // Look for next page button
-      const nextButton = await this.page.$('[data-pagination-button-next]');
+      const nextButton = await page.$('[data-pagination-button-next]');
       
       if (nextButton) {
-        const isDisabled = await this.page.evaluate(button => {
+        const isDisabled = await page.evaluate(button => {
           return button.hasAttribute('disabled') || button.getAttribute('aria-disabled') === 'true';
         }, nextButton);
         
         if (!isDisabled) {
           await nextButton.click();
-          await this.page.waitForTimeout(3000); // Wait for page to load
+          await page.waitForTimeout(3000);
           return true;
         }
       }
@@ -296,15 +389,21 @@ class TrustpilotScraper {
       console.log('⚠️ No next page found or error navigating:', error.message);
       return false;
     }
-  }
+  };
 
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
+  const close = async () => {
+    if (browser) {
+      await browser.close();
       console.log('✅ Browser closed');
     }
-  }
-}
+  };
+
+  return {
+    init,
+    scrapeAllReviews,
+    close
+  };
+};
 
 // API Routes
 
@@ -342,11 +441,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-
-
 // Specific endpoint for SafeLedger reviews
 app.get('/scrape/safeledger', async (req, res) => {
-  const scraper = new TrustpilotScraper();
+  const scraper = createTrustpilotScraper();
   
   try {
     console.log('🎯 Starting SafeLedger review scraping...');
@@ -402,7 +499,7 @@ app.post('/scrape', async (req, res) => {
     });
   }
 
-  const scraper = new TrustpilotScraper();
+  const scraper = createTrustpilotScraper();
   
   try {
     console.log(`🎯 Starting scraping for: ${url}`);
@@ -471,4 +568,4 @@ app.listen(PORT, HOST, () => {
   console.log(`🐳 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
-module.exports = app; 
+export default app;
